@@ -1,0 +1,1768 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sleep Community</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>
+    // Mock preventivo de segurança se o CDN do Lucide falhar ao carregar (offline ou bloqueio de DNS)
+    if (typeof lucide === 'undefined') {
+      window.lucide = {
+        createIcons: function() { console.warn("Lucide CDN offline, ícones mockados."); }
+      };
+    }
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+    body {
+      background-color: #050505;
+      color: #e4e4e7;
+      /* zinc-200 */
+      font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+      overflow: hidden;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    .font-mono {
+      font-family: 'JetBrains Mono', ui-monospace, monospace;
+    }
+
+    .font-display {
+      font-family: 'Inter', sans-serif;
+      letter-spacing: -0.025em;
+    }
+
+    .pywebview-drag-region {
+      -webkit-app-region: drag;
+    }
+
+    .no-drag {
+      -webkit-app-region: no-drag;
+    }
+
+    .animate-pulse {
+      animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: .5;
+      }
+    }
+
+    .animate-bounce-slow {
+      animation: bounce 2s infinite;
+    }
+
+    @keyframes bounce {
+
+      0%,
+      100% {
+        transform: translateY(-5%);
+      }
+
+      50% {
+        transform: translateY(0);
+      }
+    }
+
+    .animate-ping-slow {
+      animation: ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+    }
+
+    @keyframes ping {
+
+      75%,
+      100% {
+        transform: scale(1.5);
+        opacity: 0;
+      }
+    }
+
+    .animate-spin-slow {
+      animation: spin 8s linear infinite;
+    }
+
+    @keyframes spin {
+      from {
+        transform: rotate(0deg);
+      }
+
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    @keyframes shimmer {
+      100% {
+        transform: translateX(100%);
+      }
+    }
+
+    .animate-shimmer {
+      animation: shimmer 1.5s infinite;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #27272a;
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: #3f3f46;
+    }
+
+    /* Config tailwind colors to match React ones */
+    .text-zinc-650 {
+      color: #52525b;
+    }
+
+    .text-zinc-550 {
+      color: #616161;
+    }
+
+    .bg-zinc-850 {
+      background-color: #1f1f22;
+    }
+  </style>
+</head>
+
+<body class="h-screen w-screen flex flex-col relative">
+
+  <!-- NATIVE-LOOKING TOP BAR -->
+  <div
+    class="pywebview-drag-region h-14 border-b border-zinc-900 bg-black px-5 flex items-center justify-between shrink-0 font-mono text-zinc-400 z-50">
+    <!-- Brand Details -->
+    <div class="flex items-center gap-2.5">
+      <div class="w-5 h-5 rounded bg-white flex items-center justify-center">
+        <i data-lucide="zap" class="w-3 h-3 text-black fill-black"></i>
+      </div>
+      <div class="flex flex-col">
+        <span class="text-xs font-bold text-white tracking-widest uppercase">SLEEP COMMUNITY</span>
+      </div>
+      <span class="text-zinc-800 text-xs">|</span>
+      <span class="text-[10px] text-zinc-500 uppercase tracking-widest">Sleep Community</span>
+    </div>
+
+    <!-- License Tracker (Hidden on Auth) -->
+    <div id="top-license-tracker" class="hidden sm:flex items-center gap-4 text-xs font-mono">
+      <div class="flex items-center gap-1.5 bg-[#121214]/65 border border-zinc-900 py-1 px-2.5 rounded text-zinc-300">
+        <span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+        <span>Chave: <span id="top-key-display">...</span></span>
+      </div>
+      <div class="text-zinc-500 text-[10.5px]">
+        Expira em: <span id="top-countdown-display" class="text-white font-medium">--:--:--</span>
+      </div>
+    </div>
+
+    <!-- Window Controls -->
+    <div class="no-drag flex items-center gap-4 pl-4 border-l border-zinc-900 w-auto shrink-0">
+      <button onclick="logoutApp()"
+        class="p-1 rounded text-zinc-500 hover:text-white hover:bg-zinc-900/60 transition-colors"
+        title="Sair / Desvincular Chave">
+        <i data-lucide="log-out" class="w-3.5 h-3.5"></i>
+      </button>
+      <div class="flex items-center gap-1.5 cursor-pointer">
+        <div onclick="window.pywebview.api.minimize_app()"
+          class="w-3 h-3 rounded-full bg-zinc-900 hover:bg-zinc-700 flex items-center justify-center transition-all"
+          title="Minimizar">
+          <i data-lucide="minus" class="w-2 h-2 text-zinc-400"></i>
+        </div>
+        <div class="w-3 h-3 rounded-full bg-zinc-900 hover:bg-zinc-700 flex items-center justify-center transition-all"
+          title="Tela Cheia">
+          <i data-lucide="square" class="w-1.5 h-1.5 text-zinc-400"></i>
+        </div>
+        <button onclick="window.pywebview.api.close_app()"
+          class="w-3 h-3 rounded-full bg-zinc-900 hover:bg-red-600/30 group flex items-center justify-center transition-all"
+          title="Fechar">
+          <i data-lucide="x" class="w-2 h-2 text-zinc-500 group-hover:text-red-500"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- WORKSPACE ENVIRONMENT -->
+  <div class="flex-1 flex overflow-hidden w-full relative" id="workspace">
+
+    <!-- LICENSE SCREEN (Auth Gate) -->
+    <div id="license-gate"
+      class="flex-1 flex items-center justify-center p-6 bg-[#030303] absolute inset-0 z-40 transition-opacity duration-300">
+      <div
+        class="w-full max-w-[480px] bg-black border border-zinc-800 rounded-2xl p-8 shadow-[0_25px_60px_rgba(0,0,0,0.9)] relative overflow-hidden">
+        <!-- Decorative high-contrast sleek accent lights -->
+        <div
+          class="absolute top-0 left-1/4 right-1/4 h-[1px] bg-gradient-to-r from-transparent via-zinc-800 to-transparent">
+        </div>
+        <div
+          class="absolute top-0 right-0 w-32 h-32 bg-white/5 blur-3xl rounded-full -mr-16 -mt-16 pointer-events-none">
+        </div>
+
+        <div class="text-center mb-8 relative z-10">
+          <div
+            class="inline-flex items-center justify-center w-12 h-12 rounded-lg bg-zinc-900/40 border border-zinc-800 mb-4 shadow-inner">
+            <div class="animate-spin-slow">
+              <i data-lucide="key-round" class="w-6 h-6 text-white"></i>
+            </div>
+          </div>
+          <h2 class="text-2xl font-bold tracking-tighter uppercase italic text-white font-display">Sleep<span
+              class="text-zinc-500 italic">Community</span></h2>
+          <p class="text-xs text-zinc-400 mt-1 uppercase tracking-widest font-mono">
+            Sleep Community <span
+              class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse ml-1"></span> FiveM Manager
+          </p>
+        </div>
+
+        <div class="space-y-6 relative z-10">
+          <div>
+            <div class="flex justify-between items-center mb-2">
+              <label class="text-[11px] uppercase tracking-wider font-mono text-zinc-400">CHAVE DE ACESSO</label>
+            </div>
+            <div class="relative">
+              <input id="license-key" type="text"
+                class="w-full bg-[#030303] border border-zinc-800 focus:border-zinc-500 text-white font-mono text-sm rounded-lg py-3.5 px-4 focus:outline-none transition-all duration-200 uppercase tracking-wide text-center"
+                placeholder="KEYAUTH-XXXXX-XXXXX-XXXX" />
+              <div class="absolute right-3.5 top-3.5 text-zinc-600">
+                <i data-lucide="key" class="w-4 h-4"></i>
+              </div>
+            </div>
+            <p id="license-error" class="text-xs text-red-500 mt-2 font-mono text-center hidden"></p>
+          </div>
+
+          <div class="flex items-center justify-between text-xs text-zinc-400 font-mono">
+            <label class="flex items-center gap-2.5 cursor-pointer group">
+              <input type="checkbox" id="remember-me" checked class="sr-only" />
+              <div id="remember-box"
+                class="w-4 h-4 border rounded flex items-center justify-center bg-white border-white text-black transition-all">
+                <svg class="w-3 h-3 stroke-[3]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <span class="select-none group-hover:text-zinc-300">Lembrar neste PC</span>
+            </label>
+            <span class="text-zinc-500 hover:text-zinc-400 cursor-help flex items-center gap-1">Suporte <i
+                data-lucide="help-circle" class="w-3 h-3"></i></span>
+          </div>
+
+          <div class="pt-2">
+            <button id="btn-validate" onclick="handleValidate()"
+              class="w-full relative overflow-hidden rounded-lg py-4 px-6 font-semibold bg-white hover:bg-neutral-200 text-black border border-white hover:shadow-[0_0_20px_rgba(255,255,255,0.15)] active:scale-[0.98] transition-all duration-300 flex items-center justify-center gap-2">
+              <span>VALIDAR LICENÇA</span>
+              <i data-lucide="arrow-right" class="w-4 h-4"></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="mt-6 pt-5 border-t border-zinc-900 flex items-center justify-center gap-2">
+          <i id="shield-icon" data-lucide="shield-check" class="w-4 h-4 text-zinc-600"></i>
+          <span id="status-text" class="text-[11px] font-mono text-zinc-500 uppercase tracking-widest">Pronto para
+            validação</span>
+        </div>
+
+        <div class="mt-8 flex items-center justify-between text-[10px] font-mono text-zinc-500">
+          <span>v1.0 - Sleep Community © 2026</span>
+          <span onclick="window.open('https://discord.gg/6j7KaMBpXP', '_blank')"
+            class="text-white hover:underline cursor-pointer flex items-center gap-0.5">Discord <i
+              data-lucide="external-link" class="w-2.5 h-2.5"></i></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- MAIN APP FULL (Hidden initially) -->
+    <div id="app-content" class="flex-1 flex overflow-hidden w-full hidden z-10 relative">
+
+      <!-- SIDEBAR -->
+      <aside class="w-60 border-r border-zinc-900 bg-black flex flex-col justify-between shrink-0 p-6">
+        <div class="space-y-8">
+          <div>
+            <h2
+              class="text-base font-bold tracking-tighter uppercase italic text-white flex items-center gap-2 font-display">
+              Sleep<span class="text-zinc-500 italic">Community</span>
+            </h2>
+            <p class="text-[9px] text-zinc-500 mt-1 uppercase tracking-widest font-mono">Performance Engine v4.2</p>
+          </div>
+
+          <nav class="space-y-6">
+            <div class="space-y-2">
+              <p class="text-[10px] text-zinc-600 uppercase tracking-widest font-mono font-semibold">Geral</p>
+              <button onclick="switchTab('launcher')" id="nav-launcher"
+                class="w-full flex items-center gap-3 text-xs font-mono uppercase tracking-wide py-2.5 px-3 rounded-lg transition-all duration-150 bg-zinc-900 text-white font-bold border-l-2 border-white">
+                <i data-lucide="zap" class="w-3.5 h-3.5"></i> Launcher
+              </button>
+              <button onclick="switchTab('servidores')" id="nav-servidores"
+                class="w-full flex items-center gap-3 text-xs font-mono uppercase tracking-wide py-2.5 px-3 rounded-lg transition-all duration-150 text-zinc-400 hover:text-white hover:bg-zinc-900/40 text-left border-l-2 border-transparent">
+                <i data-lucide="server" class="w-3.5 h-3.5"></i> Servidores
+              </button>
+            </div>
+            <div class="space-y-2">
+              <p class="text-[10px] text-zinc-600 uppercase tracking-widest font-mono font-semibold">Segurança</p>
+              <button onclick="switchTab('contas')" id="nav-contas"
+                class="w-full flex items-center gap-3 text-xs font-mono uppercase tracking-wide py-2.5 px-3 rounded-lg transition-all duration-150 text-zinc-400 hover:text-white hover:bg-zinc-900/40 text-left border-l-2 border-transparent">
+                <i data-lucide="key" class="w-3.5 h-3.5"></i> Estoque Contas
+              </button>
+            </div>
+            <div class="space-y-2">
+              <p class="text-[10px] text-zinc-600 uppercase tracking-widest font-mono font-semibold">Rede Privada</p>
+              <button onclick="switchTab('vpn')" id="nav-vpn"
+                class="w-full flex items-center gap-3 text-xs font-mono uppercase tracking-wide py-2.5 px-3 rounded-lg transition-all duration-150 text-zinc-400 hover:text-white hover:bg-zinc-900/40 text-left border-l-2 border-transparent">
+                <i data-lucide="globe" class="w-3.5 h-3.5"></i> Acelerador VPN
+              </button>
+            </div>
+            <div class="space-y-2">
+              <p class="text-[10px] text-zinc-600 uppercase tracking-widest font-mono font-semibold">Manutenção</p>
+              <button onclick="switchTab('desbugar')" id="nav-desbugar"
+                class="w-full flex items-center gap-3 text-xs font-mono uppercase tracking-wide py-2.5 px-3 rounded-lg transition-all duration-150 text-zinc-400 hover:text-white hover:bg-zinc-900/40 text-left border-l-2 border-transparent">
+                <i data-lucide="wrench" class="w-3.5 h-3.5"></i> Desbugar
+              </button>
+            </div>
+          </nav>
+        </div>
+
+        <div class="pt-4 border-t border-zinc-900 space-y-3 font-mono text-[10px] text-zinc-500">
+          <div class="flex items-center gap-1.5 justify-between">
+            <span class="uppercase text-[9px] tracking-widest">Sessão Ativa:</span>
+            <span id="session-time" class="text-zinc-400 font-bold">00h 00m</span>
+          </div>
+          <div class="flex items-center gap-1.5 text-emerald-500 uppercase text-[9px] tracking-widest font-bold">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span>
+            Sistema Operacional
+          </div>
+        </div>
+      </aside>
+
+      <!-- DYNAMIC SCROLLABLE ACTIVE CONTENT STAGE -->
+      <main class="flex-1 bg-[#050505] p-6 lg:p-9 overflow-y-auto" id="main-panels">
+        <div class="max-w-4xl mx-auto space-y-4">
+
+          <div class="border-b border-zinc-900 pb-4 mb-4 flex items-center justify-between">
+            <div>
+              <h2 id="page-title" class="text-lg font-bold tracking-tight text-white font-display uppercase">Painel de
+                Controle Sleep Community</h2>
+              <p id="page-subtitle" class="text-xs text-zinc-500 mt-1">Gerencie injeção, limpeza de cache, bypass
+                Rockstar e console local.</p>
+            </div>
+            <div class="text-right text-[10px] font-mono text-zinc-500 hidden md:block">
+              <span>GUI WORKSPACE: ACTIVE STATE</span>
+            </div>
+          </div>
+
+          <!-- LAUNCHER PANEL -->
+          <div id="panel-launcher" class="space-y-6 block">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <button id="btn-fastlaunch" onclick="fastLaunch()"
+                class="w-full relative overflow-hidden py-5 rounded-lg border text-sm font-semibold tracking-wider flex items-center justify-center gap-3 transition-all duration-300 bg-white border-white text-black hover:bg-zinc-200 active:scale-[0.99] shadow-[0_4px_20px_rgba(255,255,255,0.05)]">
+                <i id="launch-icon" data-lucide="zap" class="w-4 h-4 text-black fill-black"></i>
+                <span id="launch-text">SLEEP COMMUNITY</span>
+                <div
+                  class="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full hover:animate-[shimmer_1.5s_infinite]">
+                </div>
+              </button>
+
+              <button id="btn-fastlogout" onclick="fastLogout()"
+                class="w-full py-5 rounded-lg border border-zinc-800 bg-black text-zinc-300 hover:text-white hover:bg-zinc-900 hover:border-zinc-700 active:scale-[0.99] transition-all duration-200 text-sm font-semibold tracking-wider flex items-center justify-center gap-2">
+                <i data-lucide="log-out" class="w-4 h-4 text-zinc-500"></i>
+                <span>DESLOGAR ROCKSTAR</span>
+              </button>
+            </div>
+
+
+
+            <div class="border border-zinc-800 bg-black rounded-xl p-5 space-y-4">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <span class="w-1.5 h-3 bg-white rounded-full"></span>
+                  <h3 class="text-xs uppercase font-mono tracking-widest text-zinc-400">CONTA EM USO</h3>
+                </div>
+                <button onclick="switchTab('contas')"
+                  class="text-[11px] font-mono text-zinc-400 hover:text-white transition-colors duration-150 border border-zinc-800 rounded bg-black px-2.5 py-1">
+                  + nova conta
+                </button>
+              </div>
+
+              <div class="border border-zinc-800 bg-zinc-900/25 rounded-lg p-4 flex items-center justify-between">
+                <div class="flex items-center gap-3 overflow-hidden" id="active-account-display">
+                  <span class="w-2 h-2 rounded-full bg-zinc-700"></span>
+                  <span class="font-mono text-xs text-zinc-500 tracking-wide">Nenhuma conta selecionada no
+                    estoque</span>
+                </div>
+                <button id="btn-copy" onclick="copyActiveAccount()"
+                  class="hidden text-xs text-zinc-400 hover:text-white bg-black border border-zinc-800 p-2 rounded-md hover:bg-zinc-900 transition-all shrink-0"
+                  title="Copiar dados">
+                  <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                </button>
+              </div>
+            </div>
+
+            <div class="border border-zinc-800 bg-black rounded-xl p-5 space-y-3">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <i data-lucide="terminal" class="w-4 h-4 text-zinc-500"></i>
+                  <h3 class="text-xs uppercase font-mono tracking-widest text-zinc-400">LOG DO CONSOLE</h3>
+                </div>
+                <div class="flex items-center gap-1.5">
+                  <span class="w-1.5 h-1.5 bg-zinc-400 rounded-full animate-ping"></span>
+                  <span class="text-[10px] uppercase font-mono text-zinc-500">LIVE</span>
+                </div>
+              </div>
+              <div id="logs"
+                class="bg-zinc-900/35 border border-zinc-800 rounded-lg p-5 h-[220px] overflow-y-auto font-mono text-xs space-y-2.5 flex flex-col-reverse">
+              </div>
+            </div>
+          </div>
+
+          <!-- CONTAS PANEL -->
+          <div id="panel-contas" class="space-y-5 relative hidden">
+            <div class="flex flex-col sm:flex-row gap-3 items-center justify-between">
+              <div class="relative w-full sm:max-w-xs">
+                <input id="search-input" type="text" placeholder="Pesquisar contas..." onkeyup="renderAccounts()"
+                  class="w-full bg-black border border-zinc-800 text-white font-mono text-xs rounded-lg pl-9 pr-4 py-2.5 focus:outline-none focus:border-zinc-500 transition-colors" />
+                <i data-lucide="search" class="w-3.5 h-3.5 text-zinc-500 absolute left-3 top-3.5"></i>
+              </div>
+
+              <div class="flex items-center gap-3 w-full sm:w-auto justify-end">
+                <div
+                  class="bg-black border border-zinc-800 rounded-lg p-1 flex items-center gap-1 font-mono text-xs shrink-0">
+                  <button id="tab-estoque" onclick="setAccountsTab('estoque')"
+                    class="px-3 py-1.5 rounded-md transition-all duration-150 bg-white text-black font-semibold">Estoque</button>
+                  <button id="tab-usada" onclick="setAccountsTab('usada')"
+                    class="px-3 py-1.5 rounded-md transition-all duration-150 text-zinc-400 hover:text-white">Usadas</button>
+                </div>
+                <div class="flex items-center gap-2 shrink-0">
+                  <button onclick="togglePasswords()"
+                    class="p-2.5 rounded-lg border border-zinc-800 bg-black text-zinc-400 hover:text-white transition-colors"
+                    title="Mostrar senhas">
+                    <i id="icon-eye" data-lucide="eye" class="w-3.5 h-3.5"></i>
+                  </button>
+                  <button onclick="toggleAddModal()"
+                    class="p-2.5 rounded-lg bg-white border border-white text-black hover:bg-zinc-200 transition-all flex items-center justify-center">
+                    <i data-lucide="plus" class="w-4 h-4"></i>
+                  </button>
+                  <button onclick="clearAllAccounts()"
+                    class="p-2.5 rounded-lg border border-red-900/50 bg-black text-red-500 hover:bg-red-950/30 hover:text-red-400 transition-colors"
+                    title="Limpar Todo o Estoque">
+                    <i data-lucide="trash" class="w-4 h-4"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div class="border border-zinc-800 bg-black rounded-xl overflow-hidden min-h-[300px] flex flex-col">
+              <div id="accounts-list" class="overflow-y-auto max-h-[340px] flex-1">
+                <!-- Items -->
+              </div>
+            </div>
+          </div>
+
+          <!-- VPN PANEL -->
+          <div id="panel-vpn" class="space-y-6 hidden">
+            <div class="border border-zinc-800 bg-black rounded-xl p-5 space-y-3">
+              <div class="flex items-center gap-2">
+                <i data-lucide="globe" class="w-4 h-4 text-zinc-400"></i>
+                <h3 class="text-xs font-mono uppercase tracking-widest text-zinc-400">Instruções de Rota Otimizada</h3>
+              </div>
+              <div
+                class="bg-zinc-900/15 border border-zinc-800 rounded-lg p-4 font-mono text-[11px] text-zinc-400 leading-relaxed max-h-[160px] overflow-y-auto space-y-2.5">
+                <p class="text-zinc-200 font-semibold mb-1">VPN com FiveM — leia uma vez depois e só repetir a ordem:
+                </p>
+                <ul class="list-disc pl-4 space-y-1.5 text-zinc-400">
+                  <li>Primeiro conecte a VPN de aceleração abaixo e certifique-se de que o status mude para ATIVA.</li>
+                  <li>Abra o launcher do FiveM e conecte na sua cidade desejada normalmente.</li>
+                  <li>Assim que o aviso iniciar o carregamento de conteúdo, você pode parar a VPN — o download de alta
+                    velocidade já iniciou sem restrições.</li>
+                </ul>
+              </div>
+            </div>
+
+            <div
+              class="border border-zinc-800 bg-black rounded-xl p-5 flex flex-col items-center justify-center text-center space-y-3.5 relative">
+              <div id="vpn-glow"
+                class="absolute inset-0 rounded-xl bg-transparent blur-md opacity-20 transition-all duration-500 pointer-events-none">
+              </div>
+              <div
+                class="relative w-12 h-12 rounded-full border border-zinc-800 bg-zinc-900/40 flex items-center justify-center">
+                <i id="vpn-icon" data-lucide="wifi-off" class="w-5 h-5 text-zinc-600"></i>
+              </div>
+              <div class="space-y-1">
+                <span class="text-zinc-500 text-[10px] tracking-wider uppercase font-mono">STATUS DE CONEXÃO</span>
+                <h4 id="vpn-status-text" class="text-sm font-semibold tracking-wide font-mono text-zinc-400">VPN
+                  DESLIGADA</h4>
+              </div>
+              <div
+                class="grid grid-cols-2 gap-4 w-full max-w-xs border-t border-zinc-800 pt-3.5 font-mono text-[11px] text-zinc-400">
+                <div>
+                  <span class="text-zinc-600 block text-[9px] uppercase">Reta Atual</span>
+                  <span class="text-white font-medium">Sul Americana #01</span>
+                </div>
+                <div>
+                  <span class="text-zinc-600 block text-[9px] uppercase">Endereço IP</span>
+                  <button onclick="toggleIP()" id="vpn-ip" class="text-white hover:underline focus:outline-none">Mostrar
+                    IP</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3.5">
+              <button id="btn-vpn-start" onclick="startVpn()"
+                class="py-4 rounded-lg font-semibold tracking-wider text-xs transition-all flex items-center justify-center gap-2 bg-white border border-white text-black hover:bg-zinc-200">
+                <i data-lucide="wifi" class="w-4 h-4"></i> ATIVAR VPN
+              </button>
+              <button id="btn-vpn-stop" onclick="stopVpn()"
+                class="py-4 rounded-lg font-semibold tracking-wider text-xs border transition-all flex items-center justify-center gap-2 bg-transparent border-zinc-800 text-zinc-600 cursor-not-allowed"
+                disabled>
+                <i data-lucide="wifi-off" class="w-4 h-4"></i> PARAR VPN
+              </button>
+            </div>
+          </div>
+
+          <!-- DESBUGAR PANEL -->
+          <div id="panel-desbugar" class="space-y-6 hidden">
+            <div class="border border-zinc-800 bg-black rounded-xl p-5 space-y-3">
+              <div class="flex items-center gap-2">
+                <i data-lucide="wrench" class="w-4 h-4 text-zinc-400"></i>
+                <h3 class="text-xs font-mono uppercase tracking-widest text-zinc-400">Desbugar Rockstar</h3>
+              </div>
+              <div
+                class="bg-zinc-900/15 border border-zinc-800 rounded-lg p-4 font-mono text-[11px] text-zinc-400 leading-relaxed overflow-y-auto space-y-2.5">
+                <p class="text-zinc-200 font-semibold mb-1">Desbugar Rockstar — limpa cache, logs e dados do jogo:</p>
+                <ul class="list-disc pl-4 space-y-1.5 text-zinc-400">
+                  <li>Fecha todos os processos relacionados (FiveM, Rockstar, Steam...).</li>
+                  <li>Limpa Temp, Prefetch, Lixeira e logs do sistema.</li>
+                  <li>Remove dados do FiveM, Rockstar, Xbox e navegadores.</li>
+                  <li>Limpa MRU, telemetria e cache do Windows Defender.</li>
+                  <li>Reinicia DNS e reseta configurações de rede.</li>
+                </ul>
+                <p class="text-zinc-500 mt-3 block">Use antes de trocar conta ou quando estiver com Rate Limit.<br>Feche
+                  o FiveM e o Rockstar Launcher antes de executar.</p>
+              </div>
+            </div>
+
+            <button onclick="runReinstallRockstar()" id="btn-reinstall-rsg"
+              class="w-full py-5 rounded-lg border border-zinc-800 bg-black text-zinc-300 hover:text-white hover:bg-zinc-900 hover:border-zinc-700 active:scale-[0.99] transition-all duration-200 text-sm font-semibold tracking-wider flex items-center justify-center gap-2">
+              <i data-lucide="download-cloud" class="w-4 h-4 text-zinc-500"></i>
+              <span>REINSTALAR ROCKSTAR</span>
+            </button>
+
+            <button id="btn-ratelimit" onclick="removeRateLimit()"
+              class="w-full py-4 rounded-lg border border-red-900/50 bg-black text-red-500 hover:text-red-400 hover:bg-red-950/30 hover:border-red-800 active:scale-[0.99] transition-all duration-200 text-sm font-semibold tracking-wider flex items-center justify-center gap-2 shadow-[0_4px_20px_rgba(220,38,38,0.02)]">
+              <i data-lucide="shield-alert" class="w-4 h-4"></i>
+              <span>REMOVER RATE LIMIT (FIVEM / DISCORD)</span>
+            </button>
+          </div>
+
+          <!-- SERVIDORES PANEL -->
+          <div id="panel-servidores" class="space-y-4 hidden flex-col h-[550px]">
+            <!-- TITLE BAR -->
+            <div class="flex items-center justify-between shrink-0 border-b border-zinc-900 pb-2">
+              <h1 class="text-sm font-bold uppercase tracking-widest text-zinc-300">Servidores Connect</h1>
+              <button onclick="openGlobalSearch()" class="px-5 py-2 bg-transparent border border-zinc-800 hover:border-zinc-500 text-zinc-400 hover:text-white text-xs font-semibold rounded-md transition-all flex items-center gap-2">
+                Buscar Online
+              </button>
+            </div>
+
+            <!-- SAVED SERVERS SEARCH -->
+            <div class="bg-black border border-zinc-800 rounded-lg p-2 shrink-0 focus-within:border-zinc-500 transition-colors">
+              <input type="text" id="saved-search" autocomplete="off" oninput="renderSavedServers()" placeholder="Pesquisar servidor salvo..." class="bg-transparent border-none w-full text-xs text-white focus:outline-none placeholder-zinc-600" />
+            </div>
+
+            <!-- SAVED SERVERS HEADER -->
+            <div class="grid grid-cols-[1fr_120px_100px] px-2 text-[10px] font-medium text-zinc-500 uppercase tracking-wider shrink-0">
+              <span>Servidor / Connect</span>
+              <span class="text-center">Jogadores</span>
+              <span></span>
+            </div>
+
+            <!-- SAVED SERVERS LIST -->
+            <div class="flex-1 overflow-y-auto space-y-1.5 pr-1" id="saved-list">
+              <!-- Rendered by JS -->
+            </div>
+
+            <!-- ADD SERVER SECTION -->
+            <div class="border border-zinc-800 bg-black rounded-lg p-4 shrink-0 flex flex-col gap-3 mt-auto">
+              <div class="flex items-center gap-2">
+                <span class="text-zinc-400 font-bold text-sm leading-none">+</span>
+                <h2 class="text-[11px] font-bold uppercase tracking-widest text-zinc-400">Adicionar Servidor</h2>
+              </div>
+              
+              <div class="flex gap-2">
+                <input type="text" id="add-name" placeholder="Nome (ex: IGNN Roleplay...)" class="flex-1 bg-black border border-zinc-800 rounded-md px-3 py-2 text-xs text-white focus:border-zinc-500 focus:outline-none transition-colors" />
+                <input type="text" id="add-connect" placeholder="connect string (ex: cfx.re/join/XXXXX)" class="w-[200px] bg-black border border-zinc-800 rounded-md px-3 py-2 text-xs text-white focus:border-zinc-500 focus:outline-none transition-colors" />
+                <button onclick="addManualServer()" class="px-5 py-2 rounded-lg border border-zinc-800 bg-black text-zinc-300 hover:text-white hover:bg-zinc-900 hover:border-zinc-700 active:scale-[0.99] transition-all duration-200 text-xs font-semibold tracking-wider flex items-center justify-center gap-2">
+                  SALVAR
+                </button>
+
+                
+              </div>
+            </div>
+
+            <!-- AUTO CONNECT TOGGLE -->
+            <div class="border border-zinc-800 bg-black rounded-lg p-3 shrink-0 flex items-center gap-3">
+              <label class="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" id="auto-connect-toggle" onchange="toggleAutoConnect()" class="sr-only peer">
+                <div class="w-9 h-5 bg-zinc-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-zinc-400 after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-white peer-checked:after:bg-black"></div>
+              </label>
+              <div>
+                <h3 class="text-xs font-medium text-zinc-200">Conectar automaticamente após login Rockstar</h3>
+                <p class="text-[9px] text-zinc-500 mt-0.5">Selecione um servidor (bolinha amarela) na lista acima para ativar.</p>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </main>
+      
+      <!-- GLOBAL SEARCH MODAL -->
+      <div id="search-modal" class="absolute inset-0 bg-black/90 backdrop-blur-sm z-[200] flex items-center justify-center opacity-0 pointer-events-none transition-opacity duration-200">
+        <div class="bg-black border border-zinc-800 rounded-xl w-[95%] max-w-3xl h-[80vh] flex flex-col shadow-2xl transform scale-95 transition-transform duration-200" id="search-modal-content">
+          
+          <div class="flex items-center justify-between p-4 border-b border-zinc-800">
+            <div class="flex items-center gap-3">
+              <div class="p-1.5 bg-zinc-900 rounded-lg">
+                <i data-lucide="globe" class="w-4 h-4 text-zinc-400"></i>
+              </div>
+              <h2 class="text-sm font-semibold tracking-wide text-zinc-100">Buscar Servidores FiveM</h2>
+            </div>
+            <button onclick="closeGlobalSearch()" class="p-1.5 rounded-md text-zinc-500 hover:bg-[#18181b] hover:text-white transition-colors">
+              <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+          </div>
+          
+          <div class="p-5 flex flex-col flex-1 gap-4 overflow-hidden">
+            <div class="flex gap-2 shrink-0">
+              <div class="flex-1 relative">
+                <input type="text" id="global-search-input" autocomplete="off" onkeydown="if(event.key === 'Enter') triggerGlobalSearch()" placeholder="Nome do servidor (ex: NoPixel, IGNN)..." class="w-full bg-black border border-zinc-800 rounded-lg pl-10 pr-4 py-2.5 text-xs text-white focus:border-zinc-500 focus:outline-none transition-colors" />
+                <i data-lucide="search" class="w-3.5 h-3.5 text-zinc-500 absolute left-3.5 top-3"></i>
+              </div>
+              <button onclick="triggerGlobalSearch()" class="px-6 py-2.5 rounded-lg border border-zinc-800 bg-black text-zinc-300 hover:text-white hover:bg-zinc-900 hover:border-zinc-700 active:scale-[0.99] transition-all duration-200 text-xs font-semibold tracking-wider flex items-center justify-center gap-2">
+                BUSCAR
+              </button>
+            </div>
+            
+            <p id="global-search-stats" class="text-[10px] text-zinc-400 font-mono tracking-wide shrink-0">
+              Utilize a barra acima para buscar na base global de 34.000 servidores.
+            </p>
+            
+            <div class="flex-1 bg-black border border-zinc-800 rounded-lg overflow-y-auto relative">
+              <div id="global-servers-list" class="flex flex-col p-1.5 space-y-1">
+                <div class="flex flex-col items-center justify-center h-full text-zinc-600 space-y-3 mt-20">
+                  <i data-lucide="server" class="w-8 h-8 opacity-50"></i>
+                  <p class="text-[10px] uppercase tracking-widest text-zinc-500">Nenhum servidor carregado</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="p-3 border-t border-zinc-800 bg-black text-center text-[10px] text-zinc-500 font-mono shrink-0 rounded-b-xl">
+            Clique em <span class="text-zinc-300 border border-zinc-700 bg-zinc-900 rounded px-1 py-0 mx-1">+</span> para salvar na sua lista principal.
+          </div>
+        </div>
+      </div>
+      
+    </div>
+  </div>
+
+  <!-- NATIVE FOOTER DIAGNOSTICS BAR -->
+  <footer id="footer-bar"
+    class="h-10 bg-black border-t border-zinc-900 px-5 flex items-center justify-between font-mono text-[11px] text-zinc-500 shrink-0 select-none z-50 hidden">
+    <div class="flex items-center gap-4">
+      <span class="flex items-center gap-1.5 uppercase text-[9.5px] tracking-wider text-zinc-400 font-bold">
+        <span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500"></span> SERVIDOR ONLINE
+      </span>
+      <span class="text-zinc-800">|</span>
+      <span class="text-[10px] uppercase">LATÊNCIA: <span class="text-white">12ms</span></span>
+      <span class="text-zinc-800 hidden sm:inline">|</span>
+      <span class="text-[10px] uppercase hidden sm:inline">INJEÇÃO: <span class="text-white">0.4s</span></span>
+    </div>
+    <div class="flex items-center gap-2 cursor-pointer hover:text-white transition-colors"
+      onclick="window.open('https://discord.gg/6j7KaMBpXP', '_blank')">
+      <span class="text-[10px] uppercase text-zinc-400 hover:text-white">DISCORD.GG/SLEEPCOMMUNITY</span>
+      <i data-lucide="external-link" class="w-3 h-3 text-zinc-600"></i>
+    </div>
+  </footer>
+
+  <!-- MODAL ADICIONAR CONTAS -->
+  <div id="add-modal"
+    class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div
+      class="w-full max-w-lg bg-black border border-zinc-800 rounded-xl overflow-hidden p-6 shadow-[0_25px_60px_rgba(0,0,0,0.8)]">
+      <div class="flex items-center justify-between border-b border-zinc-800 pb-4 mb-5 text-white">
+        <div class="flex items-center gap-2">
+          <i data-lucide="plus" class="w-4 h-4"></i>
+          <h3 class="font-semibold text-sm uppercase tracking-wider font-mono">Adicionar Contas — Sleep Community</h3>
+        </div>
+        <button onclick="toggleAddModal()" class="p-1 text-zinc-500 hover:text-white transition-colors"><i
+            data-lucide="x" class="w-4 h-4"></i></button>
+      </div>
+      <div>
+        <p class="text-xs text-zinc-400 font-mono mb-3.5 leading-relaxed">Cole uma ou várias contas — uma por linha.</p>
+        <div
+          class="grid grid-cols-2 gap-2 bg-[#050505] border border-zinc-800 rounded p-3 text-[10px] font-mono text-zinc-500 mb-4">
+          <div><span class="text-zinc-400 block font-bold">PADRÃO:</span> email:senha</div>
+          <div><span class="text-zinc-400 block font-bold">DUPLO FATOR:</span> email:senha:2fa</div>
+        </div>
+        <textarea id="bulk-accounts" rows="6"
+          class="w-full bg-zinc-900/40 border border-zinc-800 focus:border-zinc-500 text-white font-mono text-xs p-4 rounded-lg focus:outline-none placeholder-zinc-700 leading-relaxed"
+          placeholder="exemplo@gmail.com:senha123"></textarea>
+        <div class="flex items-center justify-end gap-3 pt-4">
+          <button onclick="toggleAddModal()"
+            class="px-4 py-2.5 rounded-lg border border-zinc-800 font-mono text-xs text-zinc-400 hover:text-white hover:bg-zinc-900/50">Cancelar</button>
+          <button onclick="saveBulkAccounts()"
+            class="px-5 py-2.5 rounded-lg bg-white text-black hover:bg-zinc-200 transition-all font-mono text-xs font-semibold">+
+            Adicionar Tudo</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL EDITAR CONTA -->
+  <div id="edit-modal"
+    class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div
+      class="w-full max-w-sm bg-black border border-zinc-800 rounded-xl overflow-hidden p-6 shadow-[0_25px_60px_rgba(0,0,0,0.8)]">
+      <div class="flex items-center justify-between border-b border-zinc-800 pb-4 mb-5 text-white">
+        <div class="flex items-center gap-2">
+          <i data-lucide="edit-3" class="w-4 h-4"></i>
+          <h3 class="font-semibold text-sm uppercase tracking-wider font-mono">Editar Conta</h3>
+        </div>
+        <button onclick="toggleEditModal()" class="p-1 text-zinc-500 hover:text-white transition-colors"><i
+            data-lucide="x" class="w-4 h-4"></i></button>
+      </div>
+      <div class="space-y-3 font-mono text-xs">
+        <input type="hidden" id="edit-id" />
+        <div>
+          <label class="block text-zinc-500 mb-1">Email</label>
+          <input type="text" id="edit-email"
+            class="w-full bg-zinc-900/40 border border-zinc-800 text-white p-2.5 rounded-lg focus:outline-none focus:border-zinc-500" />
+        </div>
+        <div>
+          <label class="block text-zinc-500 mb-1">Senha</label>
+          <input type="text" id="edit-password"
+            class="w-full bg-zinc-900/40 border border-zinc-800 text-white p-2.5 rounded-lg focus:outline-none focus:border-zinc-500" />
+        </div>
+        <div>
+          <label class="block text-zinc-500 mb-1">2FA (Opcional)</label>
+          <input type="text" id="edit-2fa"
+            class="w-full bg-zinc-900/40 border border-zinc-800 text-white p-2.5 rounded-lg focus:outline-none focus:border-zinc-500" />
+        </div>
+        <div class="flex items-center justify-end gap-3 pt-4 mt-2">
+          <button onclick="toggleEditModal()"
+            class="px-4 py-2.5 rounded-lg border border-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-900/50">Cancelar</button>
+          <button onclick="saveEditAccount()"
+            class="px-5 py-2.5 rounded-lg bg-white text-black hover:bg-zinc-200 transition-all font-semibold">Salvar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FULLSCREEN ACTION OVERLAY -->
+  <div id="action-overlay"
+    class="fixed inset-0 bg-black/90 backdrop-blur-md z-[100] flex flex-col items-center justify-center p-4 hidden transition-opacity duration-300 opacity-0">
+    <div id="action-spinner" class="w-16 h-16 border-4 border-zinc-800 border-t-white rounded-full animate-spin mb-6">
+    </div>
+    <div id="action-success-icon" class="hidden mb-6">
+      <i data-lucide="check-circle" class="w-16 h-16 text-emerald-500 animate-bounce-slow"></i>
+    </div>
+    <div id="action-error-icon" class="hidden mb-6">
+      <i data-lucide="x-circle" class="w-16 h-16 text-red-500 animate-bounce-slow"></i>
+    </div>
+    <h2 id="action-title" class="text-2xl font-bold tracking-tighter uppercase italic text-white font-display mb-2">
+      Processando...</h2>
+    <p id="action-subtitle" class="text-sm text-zinc-400 font-mono tracking-widest uppercase text-center max-w-md">
+      Aguarde a finalização do processo</p>
+  </div>
+
+  <!-- INITIALIZATION & LOGIC -->
+  <script>
+    lucide.createIcons();
+
+    function showActionOverlay(title, subtitle) {
+      const overlay = document.getElementById('action-overlay');
+      document.getElementById('action-spinner').classList.remove('hidden');
+      document.getElementById('action-success-icon').classList.add('hidden');
+      document.getElementById('action-error-icon').classList.add('hidden');
+      document.getElementById('action-title').innerText = title;
+      document.getElementById('action-subtitle').innerText = subtitle;
+
+      overlay.classList.remove('hidden');
+      // Trigger reflow for transition
+      void overlay.offsetWidth;
+      overlay.classList.remove('opacity-0');
+    }
+
+    function finishActionOverlay(successTitle, successSubtitle, isError = false) {
+      document.getElementById('action-spinner').classList.add('hidden');
+      if (isError) {
+        document.getElementById('action-error-icon').classList.remove('hidden');
+      } else {
+        document.getElementById('action-success-icon').classList.remove('hidden');
+      }
+      document.getElementById('action-title').innerText = successTitle;
+      document.getElementById('action-subtitle').innerText = successSubtitle;
+      lucide.createIcons();
+
+      setTimeout(() => {
+        const overlay = document.getElementById('action-overlay');
+        overlay.classList.add('opacity-0');
+        setTimeout(() => overlay.classList.add('hidden'), 300);
+      }, 2500);
+    }
+
+    // STATE
+    let license = null;
+    let activeAccount = null;
+    let accounts = [];
+
+    async function initVault() {
+      let isFirstRun = false;
+      try {
+        if (window.pywebview && window.pywebview.api) {
+          const res = await window.pywebview.api.load_accounts();
+          if (res.status === 'success') {
+            accounts = res.data;
+          } else if (res.status === 'empty') {
+            isFirstRun = true;
+          }
+        } else {
+          const saved = localStorage.getItem('sleep_community_accounts');
+          if (saved) accounts = JSON.parse(saved);
+          else isFirstRun = true;
+        }
+      } catch (e) { }
+
+      if (isFirstRun) {
+        accounts = [
+          { id: '1', email: 'gtaplayer01@fastmail.com', password: 'RockstarPass00912', twoFactor: '2FA998231', status: 'estoque' },
+          { id: '2', email: 'fivemvip@sleepcommunity.net', password: 'SafeSecretPassword77', status: 'estoque' }
+        ];
+        commitAccounts();
+      }
+      renderAccounts();
+    }
+    setTimeout(initVault, 500);
+
+    function commitAccounts() {
+      try {
+        if (window.pywebview && window.pywebview.api) {
+          // Fire-and-forget: não usamos await pois o WebView pode recarregar
+          // enquanto o Python ainda está processando, causando JavascriptException
+          window.pywebview.api.save_accounts(accounts);
+        } else {
+          localStorage.setItem('sleep_community_accounts', JSON.stringify(accounts));
+        }
+      } catch (e) { }
+    }
+
+    let logs = [];
+    let accountsTab = 'estoque';
+    let revealPasswords = false;
+
+    // RESTORE REMEMBER ME
+    const savedKey = localStorage.getItem('sleep_community_key');
+    if (savedKey) {
+      document.getElementById('license-key').value = savedKey;
+      document.getElementById('remember-me').checked = true;
+    }
+
+    // CHECKBOX TOGGLE
+    document.getElementById('remember-box').parentElement.addEventListener('click', function (e) {
+      e.preventDefault();
+      const cb = document.getElementById('remember-me');
+      cb.checked = !cb.checked;
+      const box = document.getElementById('remember-box');
+      if (cb.checked) {
+        box.className = "w-4 h-4 border rounded flex items-center justify-center bg-white border-white text-black transition-all";
+        box.innerHTML = '<svg class="w-3 h-3 stroke-[3]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" /></svg>';
+      } else {
+        box.className = "w-4 h-4 border rounded flex items-center justify-center border-zinc-700 bg-transparent transition-all";
+        box.innerHTML = '';
+      }
+    });
+
+    function addLog(msg, type = 'info') {
+      const d = new Date();
+      const t = `[${d.toTimeString().split(' ')[0]}]`;
+      let color = 'text-zinc-400', icon = '';
+      if (type === 'success') { color = 'text-zinc-200'; icon = '<span class="text-emerald-500 shrink-0">✓</span>'; }
+      if (type === 'error') { color = 'text-red-400'; icon = '<span class="text-red-500 shrink-0">✗</span>'; }
+      if (type === 'warning') { color = 'text-yellow-400'; }
+
+      const el = document.createElement('div');
+      el.className = 'flex gap-2.5 leading-relaxed';
+      el.innerHTML = `<span class="text-zinc-650 shrink-0">${t}</span> ${icon} <span class="${color}">${msg}</span>`;
+
+      const logsEl = document.getElementById('logs');
+      logsEl.prepend(el);
+    }
+    addLog('Sistemas locais inicializados com sucesso.', 'info');
+    addLog('Bypass virtual de comunicação Rockstar ativo.', 'info');
+
+    // UI ACTIONS
+    function logoutApp() {
+      localStorage.removeItem('sleep_community_key');
+      window.location.reload();
+    }
+
+    // AUTH
+    async function handleValidate() {
+      const key = document.getElementById('license-key').value;
+      const btn = document.getElementById('btn-validate');
+      const err = document.getElementById('license-error');
+      const statusText = document.getElementById('status-text');
+      const shield = document.getElementById('shield-icon');
+
+      if (!key.trim()) {
+        err.innerText = "Por favor, insira uma chave de acesso.";
+        err.classList.remove('hidden');
+        return;
+      }
+      err.classList.add('hidden');
+      btn.disabled = true;
+      btn.innerHTML = `<div class="flex items-center gap-2"><div class="w-4 h-4 border-2 border-zinc-400 border-t-white rounded-full animate-spin"></div><span>Carregando...</span></div>`;
+      btn.className = "w-full rounded-lg py-4 px-6 font-semibold bg-zinc-900 border border-zinc-800 text-zinc-400 cursor-wait flex items-center justify-center";
+      statusText.innerText = "Verificando chave no KeyAuth...";
+      shield.classList.add('animate-pulse');
+
+      let expiresString = "3d 10h 40m";
+      let expNum = 0;
+      try {
+        if (window.pywebview && window.pywebview.api) {
+          const res = await window.pywebview.api.login(key);
+          if (res.status !== 'success') {
+            err.innerText = res.message || "Licença inválida!";
+            err.classList.remove('hidden');
+            resetAuthBtn();
+            return;
+          }
+          if (res.expires) {
+            expNum = parseInt(res.expires, 10);
+          }
+        } else {
+          await new Promise(r => setTimeout(r, 1500)); // SIMULATE
+        }
+      } catch (e) {
+        err.innerText = "Erro de conexão.";
+        err.classList.remove('hidden');
+        resetAuthBtn();
+        return;
+      }
+
+      if (document.getElementById('remember-me').checked) localStorage.setItem('sleep_community_key', key);
+
+      statusText.innerText = "✓ Licença Ativa";
+      shield.classList.remove('animate-pulse');
+      shield.classList.replace('text-zinc-600', 'text-emerald-500');
+
+      setTimeout(() => {
+        document.getElementById('license-gate').classList.add('opacity-0', 'pointer-events-none');
+        document.getElementById('app-content').classList.remove('hidden');
+        document.getElementById('footer-bar').classList.remove('hidden');
+        document.getElementById('top-license-tracker').classList.replace('hidden', 'sm:flex');
+        document.getElementById('top-key-display').innerText = key.slice(0, 11) + "...";
+
+        if (!isNaN(expNum) && expNum > 0) {
+          startCountdown(expNum);
+        } else {
+          document.getElementById('top-countdown-display').innerText = expiresString;
+        }
+
+        startSessionTimer();
+        renderAccounts();
+      }, 500);
+    }
+
+    let countdownInterval = null;
+    function startCountdown(expiryTimestamp) {
+      if (countdownInterval) clearInterval(countdownInterval);
+
+      function update() {
+        const now = Math.floor(Date.now() / 1000);
+        const diff = expiryTimestamp - now;
+        if (diff <= 0) {
+          document.getElementById('top-countdown-display').innerText = "Expirada";
+          clearInterval(countdownInterval);
+          return;
+        }
+        const d = Math.floor(diff / (3600 * 24));
+        const h = Math.floor((diff % (3600 * 24)) / 3600);
+        const m = Math.floor((diff % 3600) / 60);
+        const s = diff % 60;
+        document.getElementById('top-countdown-display').innerText = `${d}d ${h.toString().padStart(2, '0')}h ${m.toString().padStart(2, '0')}m ${s.toString().padStart(2, '0')}s`;
+      }
+
+      update();
+      countdownInterval = setInterval(update, 1000);
+    }
+
+    function resetAuthBtn() {
+      const btn = document.getElementById('btn-validate');
+      btn.disabled = false;
+      btn.innerHTML = `<span>VALIDAR LICENÇA</span><i data-lucide="arrow-right" class="w-4 h-4"></i>`;
+      btn.className = "w-full relative overflow-hidden rounded-lg py-4 px-6 font-semibold bg-white hover:bg-neutral-200 text-black border border-white flex items-center justify-center gap-2 transition-all";
+      lucide.createIcons();
+    }
+
+    let sessionMins = 0;
+    function startSessionTimer() {
+      setInterval(() => {
+        sessionMins++;
+        const h = Math.floor(sessionMins / 60).toString().padStart(2, '0');
+        const m = (sessionMins % 60).toString().padStart(2, '0');
+        document.getElementById('session-time').innerText = `${h}h ${m}m`;
+      }, 60000);
+    }
+
+    function switchTab(tab) {
+      ['launcher', 'servidores', 'contas', 'vpn', 'desbugar'].forEach(t => {
+        document.getElementById(`panel-${t}`).classList.add('hidden');
+        if (tab !== 'servidores' && document.getElementById('panel-servidores')) {
+          document.getElementById('panel-servidores').classList.remove('flex');
+        }
+        document.getElementById(`nav-${t}`).className = "w-full flex items-center gap-3 text-xs font-mono uppercase tracking-wide py-2.5 px-3 rounded-lg transition-all duration-150 text-zinc-400 hover:text-white hover:bg-zinc-900/40 text-left border-l-2 border-transparent";
+      });
+      document.getElementById(`panel-${tab}`).classList.remove('hidden');
+      if (tab === 'servidores') {
+        document.getElementById('panel-servidores').classList.add('flex');
+      }
+      document.getElementById(`nav-${tab}`).className = "w-full flex items-center gap-3 text-xs font-mono uppercase tracking-wide py-2.5 px-3 rounded-lg transition-all duration-150 bg-zinc-900 text-white font-bold border-l-2 border-white";
+
+      const titles = {
+        'launcher': ['Painel de Controle Sleep Community', 'Gerencie injeção, limpeza de cache, bypass Rockstar e console local.'],
+        'servidores': ['Servidores FiveM', 'Explore a lista de servidores públicos e conecte-se diretamente pelo launcher.'],
+        'contas': ['Gerenciador de Estoque de Contas', 'Abra e gerencie contas cadastradas ou insira em lote por terminal.'],
+        'vpn': ['Aceleração de Rotas de Rede', 'Configure conexão criptografada de túnel proxy de menor ping para FiveM.'],
+        'desbugar': ['Manutenção de Cache e Bugs', 'Desinstale a Rockstar, limpe o cache do Windows e resete as configurações de rede.']
+      };
+      document.getElementById('page-title').innerText = titles[tab][0];
+      document.getElementById('page-subtitle').innerText = titles[tab][1];
+
+      if (tab === 'contas') renderAccounts();
+    }
+
+    // ACCOUNTS
+    function setAccountsTab(t) {
+      accountsTab = t;
+      document.getElementById('tab-estoque').className = `px-3 py-1.5 rounded-md transition-all ${t === 'estoque' ? 'bg-white text-black font-semibold' : 'text-zinc-400 hover:text-white'}`;
+      document.getElementById('tab-usada').className = `px-3 py-1.5 rounded-md transition-all ${t === 'usada' ? 'bg-white text-black font-semibold' : 'text-zinc-400 hover:text-white'}`;
+      renderAccounts();
+    }
+    function togglePasswords() {
+      revealPasswords = !revealPasswords;
+      document.getElementById('icon-eye').setAttribute('data-lucide', revealPasswords ? 'eye-off' : 'eye');
+      lucide.createIcons();
+      renderAccounts();
+    }
+    function toggleAddModal() {
+      const el = document.getElementById('add-modal');
+      el.classList.toggle('hidden');
+    }
+    function saveBulkAccounts() {
+      const txt = document.getElementById('bulk-accounts').value;
+      let count = 0;
+      txt.split('\n').forEach(line => {
+        const p = line.trim().split(':');
+        if (p.length >= 2) {
+          accounts.push({ id: Date.now() + Math.random(), email: p[0], password: p[1], twoFactor: p[2] || null, status: 'estoque' });
+          count++;
+        }
+      });
+      if (count > 0) {
+        commitAccounts();
+        addLog(`Sucesso: ${count} contas adicionadas.`, 'success');
+        document.getElementById('bulk-accounts').value = '';
+      }
+      toggleAddModal();
+      renderAccounts();
+      setAccountsTab('estoque');
+    }
+
+    function clearAllAccounts() {
+      const tabName = accountsTab === 'estoque' ? 'do ESTOQUE' : 'USADAS';
+      if (confirm(`Tem certeza que deseja apagar TODAS as contas ${tabName}? Isso não pode ser desfeito.`)) {
+        accounts = accounts.filter(a => a.status !== accountsTab);
+        if (activeAccount && activeAccount.status === accountsTab) {
+          activeAccount = null;
+          updateActiveDisplay();
+        }
+        commitAccounts();
+        renderAccounts();
+        addLog(`As contas ${tabName} foram zeradas.`, 'warning');
+      }
+    }
+
+    function toggleEditModal() {
+      document.getElementById('edit-modal').classList.toggle('hidden');
+    }
+
+    function editAccount(id, e) {
+      e.stopPropagation();
+      const a = accounts.find(x => x.id == id);
+      if (!a) return;
+      document.getElementById('edit-id').value = a.id;
+      document.getElementById('edit-email').value = a.email;
+      document.getElementById('edit-password').value = a.password;
+      document.getElementById('edit-2fa').value = a.twoFactor || '';
+      toggleEditModal();
+    }
+
+    function saveEditAccount() {
+      const id = document.getElementById('edit-id').value;
+      const a = accounts.find(x => x.id == id);
+      if (a) {
+        a.email = document.getElementById('edit-email').value.trim();
+        a.password = document.getElementById('edit-password').value.trim();
+        const tfa = document.getElementById('edit-2fa').value.trim();
+        a.twoFactor = tfa ? tfa : null;
+
+        if (activeAccount && activeAccount.id == id) {
+          updateActiveDisplay();
+        }
+        commitAccounts();
+        renderAccounts();
+        addLog(`Conta ${a.email} atualizada com sucesso.`, 'success');
+      }
+      toggleEditModal();
+    }
+
+    function deleteAccount(id, e) {
+      e.stopPropagation();
+      accounts = accounts.filter(a => a.id != id);
+      if (activeAccount && activeAccount.id == id) {
+        activeAccount = null;
+        updateActiveDisplay();
+      }
+      commitAccounts();
+      renderAccounts();
+    }
+    function switchStatus(id, e) {
+      e.stopPropagation();
+      const a = accounts.find(x => x.id == id);
+      if (a) a.status = a.status === 'estoque' ? 'usada' : 'estoque';
+      commitAccounts();
+      renderAccounts();
+    }
+    function renderAccounts() {
+      const term = document.getElementById('search-input')?.value.toLowerCase() || '';
+      const list = document.getElementById('accounts-list');
+      list.innerHTML = '';
+
+      const filtered = accounts.filter(a => a.status === accountsTab && a.email.toLowerCase().includes(term));
+
+      // Update counters
+      document.getElementById('tab-estoque').innerText = `Estoque (${accounts.filter(a => a.status === 'estoque').length})`;
+      document.getElementById('tab-usada').innerText = `Usadas (${accounts.filter(a => a.status === 'usada').length})`;
+
+      if (filtered.length === 0) {
+        list.innerHTML = `<div class="flex-1 flex flex-col items-center justify-center p-8 text-center text-zinc-500 font-mono text-xs uppercase"><i data-lucide="key" class="w-4 h-4 mb-2"></i>Nenhuma conta encontrada</div>`;
+        lucide.createIcons();
+        return;
+      }
+
+      filtered.forEach(acc => {
+        const isSel = activeAccount && activeAccount.id === acc.id;
+        const pass = revealPasswords ? acc.password : '••••••••';
+        const div = document.createElement('div');
+        div.className = `p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 cursor-pointer hover:bg-zinc-900/10 transition-colors border-b border-zinc-800 last:border-b-0 ${isSel ? 'bg-zinc-900/20 border-l-2 border-l-white' : 'border-l-2 border-l-transparent'}`;
+        div.onclick = () => {
+          if (activeAccount && activeAccount.id === acc.id) {
+            activeAccount = null;
+            updateActiveDisplay();
+            renderAccounts();
+            addLog('Seleção removida.', 'info');
+          } else {
+            activeAccount = acc;
+            updateActiveDisplay();
+            renderAccounts();
+            addLog(`Conta selecionada: ${acc.email}`, 'info');
+          }
+        };
+        div.innerHTML = `
+          <div class="space-y-1.5 md:max-w-2xl overflow-hidden">
+            <div class="flex items-center gap-2">
+               <span class="font-mono text-xs text-white font-medium truncate">${acc.email}</span>
+               <span class="text-[9px] uppercase font-mono px-2 py-0.5 rounded ${acc.status === 'estoque' ? 'bg-zinc-900/50 text-zinc-400 border border-zinc-800' : 'bg-zinc-950/50 text-zinc-600 border border-zinc-900'}">${acc.status}</span>
+            </div>
+            <div class="font-mono text-[11px] text-zinc-500 flex items-center gap-3">
+              <span>SENHA: <span class="text-zinc-300">${pass}</span></span>
+              ${acc.twoFactor ? `<span class="text-zinc-800">|</span><span>2FA: <span class="text-zinc-300">${acc.twoFactor}</span></span>` : ''}
+            </div>
+          </div>
+          <div class="flex items-center gap-2 shrink-0">
+            ${!isSel ? `<button class="p-1 px-2 border border-zinc-800 rounded font-mono text-[10px] text-zinc-400 hover:text-white bg-black">ATIVAR</button>` : ''}
+            <button onclick="switchStatus('${acc.id}', event)" class="p-1.5 rounded border border-zinc-800 text-zinc-400 hover:text-white bg-black font-mono text-[9px]">MUDAR</button>
+            <button onclick="editAccount('${acc.id}', event)" class="p-1.5 rounded border border-zinc-800 text-zinc-500 hover:text-white bg-black"><i data-lucide="edit-3" class="w-3 h-3"></i></button>
+            <button onclick="deleteAccount('${acc.id}', event)" class="p-1.5 rounded border border-zinc-800 text-zinc-500 hover:text-red-400"><i data-lucide="trash-2" class="w-3 h-3"></i></button>
+          </div>
+        `;
+        list.appendChild(div);
+      });
+      lucide.createIcons();
+    }
+
+    function updateActiveDisplay() {
+      const d = document.getElementById('active-account-display');
+      const btnC = document.getElementById('btn-copy');
+      if (!activeAccount) {
+        d.innerHTML = `<span class="w-2 h-2 rounded-full bg-zinc-700"></span><span class="font-mono text-xs text-zinc-500 tracking-wide">Nenhuma conta selecionada no estoque</span>`;
+        btnC.classList.add('hidden');
+      } else {
+        d.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          <div class="font-mono text-xs text-zinc-300 truncate">
+            <span class="text-zinc-500">EMAIL:</span> <span class="text-white font-medium">${activeAccount.email}</span>
+            <span class="mx-2 text-zinc-700">|</span>
+            <span class="text-zinc-500">SENHA:</span> <span class="text-zinc-400">••••••••</span>
+            ${activeAccount.twoFactor ? `<span class="mx-2 text-zinc-700">|</span><span class="text-zinc-500">2FA:</span> <span class="text-zinc-400">${activeAccount.twoFactor}</span>` : ''}
+          </div>`;
+        btnC.classList.remove('hidden');
+      }
+    }
+
+    function copyActiveAccount() {
+      if (!activeAccount) return;
+      const t = activeAccount.twoFactor ? `${activeAccount.email}:${activeAccount.password}:${activeAccount.twoFactor}` : `${activeAccount.email}:${activeAccount.password}`;
+      navigator.clipboard.writeText(t);
+      addLog('Dados copiados.', 'info');
+    }
+
+    // LAUNCHER
+    async function fastLaunch() {
+      if (!activeAccount) return addLog('Selecione uma conta primeiro!', 'error');
+      const btn = document.getElementById('btn-fastlaunch');
+      btn.disabled = true;
+
+      showActionOverlay('Iniciando Sistema', 'Injetando credenciais e preparando ambiente Sleep Community...');
+
+      addLog('Iniciando otimização acelerada...', 'info');
+      let success = false;
+      try {
+        if (window.pywebview && window.pywebview.api) {
+          const res = await window.pywebview.api.inject_rockstar(activeAccount.email, activeAccount.password, activeAccount.twoFactor);
+          if (res.status === 'success') {
+            addLog(`Autenticação injetada: ${activeAccount.email}`, 'success');
+            addLog('✓ Sistema Pronto! Acelerado com sucesso.', 'success');
+            success = true;
+          } else {
+            addLog(res.message, 'error');
+          }
+        } else {
+          await new Promise(r => setTimeout(r, 2500));
+          addLog('✓ Sistema Pronto (Simulação)', 'success');
+          success = true;
+        }
+      } catch (e) {
+        addLog('Falha grave.', 'error');
+      }
+
+      if (success) {
+        activeAccount.status = 'usada';
+        commitAccounts();
+        addLog('A conta ativa foi movida automaticamente para USADAS.', 'warning');
+        updateActiveDisplay();
+        renderAccounts();
+        finishActionOverlay('Sucesso!', 'Rockstar autenticada e sistema Sleep Community ativo.');
+        
+        // Auto-Connect Logic
+        if (isAutoConnect && autoConnectTarget) {
+            const targetServer = savedServers.find(s => s.id === autoConnectTarget);
+            if (targetServer) {
+                setTimeout(() => {
+                    addLog(`Auto-Connect: Conectando automaticamente ao servidor ${targetServer.name}...`, 'success');
+                    window.location.href = `fivem://connect/${targetServer.connect}`;
+                }, 1500);
+            }
+        }
+      } else {
+        finishActionOverlay('Erro!', 'Falha ao injetar autenticação da conta.', true);
+      }
+
+      setTimeout(() => {
+        btn.disabled = false;
+      }, 2500);
+    }
+
+    async function fastLogout() {
+      addLog('Iniciando rastreamento de cache...', 'warning');
+      const btn = document.getElementById('btn-fastlogout');
+      if (btn) btn.disabled = true;
+
+      showActionOverlay('Deslogando', 'Limpando credenciais salvas e limpando cache da Rockstar...');
+
+      let success = false;
+      try {
+        if (window.pywebview && window.pywebview.api) {
+          const res = await window.pywebview.api.rockstar_logout();
+          addLog(res.message, res.status === 'success' ? 'success' : 'error');
+          success = res.status === 'success';
+        } else {
+          await new Promise(r => setTimeout(r, 2000));
+          addLog('Limpeza concluída.', 'success');
+          success = true;
+        }
+      } catch (e) {
+        addLog('Falha ao limpar.', 'error');
+      }
+
+      activeAccount = null;
+      updateActiveDisplay();
+      renderAccounts();
+
+      if (success) {
+        finishActionOverlay('Deslogado!', 'O Launcher da Rockstar foi limpo com sucesso.');
+      } else {
+        finishActionOverlay('Erro!', 'Falha ao deslogar da conta.', true);
+      }
+
+      if (btn) setTimeout(() => btn.disabled = false, 2500);
+    }
+
+    async function removeRateLimit() {
+      addLog('Iniciando bypass de Rate Limit / HWID local...', 'warning');
+      const btn = document.getElementById('btn-ratelimit');
+      btn.disabled = true;
+
+      showActionOverlay('Removendo Rate Limit', 'Limpando rastros, HWID e configurações de rede...');
+
+      let success = false;
+      try {
+        if (window.pywebview && window.pywebview.api) {
+          const res = await window.pywebview.api.remove_rate_limit();
+          addLog(res.message, res.status === 'success' ? 'success' : 'error');
+          success = res.status === 'success';
+        } else {
+          await new Promise(r => setTimeout(r, 2500));
+          addLog('Rate limit removido (Simulação).', 'success');
+          success = true;
+        }
+      } catch (e) {
+        addLog('Erro ao executar bypass de rede.', 'error');
+      }
+
+      if (success) {
+        finishActionOverlay('Concluído!', 'Rate Limit e HWID foram removidos com sucesso.');
+      } else {
+        finishActionOverlay('Erro!', 'Falha ao tentar remover o Rate Limit.', true);
+      }
+
+      setTimeout(() => {
+        btn.disabled = false;
+      }, 2500);
+    }
+
+    // VPN
+    let vpnState = 'off';
+    let ipVis = false;
+    let currentIp = "Desconhecido";
+
+    function toggleIP() {
+      ipVis = !ipVis;
+      document.getElementById('vpn-ip').innerText = ipVis ? currentIp : 'Mostrar IP';
+    }
+
+    async function startVpn() {
+      if (vpnState !== 'off') return;
+      vpnState = 'conn';
+      addLog('Estabelecendo túnel de conexão VPN (Cloudflare WARP)...', 'info');
+      document.getElementById('vpn-icon').setAttribute('data-lucide', 'refresh-cw');
+      document.getElementById('vpn-icon').classList.add('animate-spin');
+      document.getElementById('vpn-status-text').innerText = "ESTABELECENDO TÚNEL...";
+      lucide.createIcons();
+
+      const bStart = document.getElementById('btn-vpn-start');
+      const bStop = document.getElementById('btn-vpn-stop');
+      bStart.className = "py-4 rounded-lg font-semibold tracking-wider text-xs transition-all flex items-center justify-center gap-2 bg-zinc-900 border border-zinc-800 text-zinc-650 cursor-not-allowed";
+      bStart.disabled = true;
+
+      let success = false;
+      try {
+        if (window.pywebview && window.pywebview.api) {
+          const res = await window.pywebview.api.start_vpn();
+          if (res.status === 'success') {
+            currentIp = await window.pywebview.api.get_real_ip();
+            success = true;
+            addLog('✓ VPN Ativada! IP Mascarado: ' + currentIp, 'success');
+          } else {
+            addLog('Erro: ' + res.message, 'error');
+          }
+        } else {
+          await new Promise(r => setTimeout(r, 2000));
+          currentIp = "1.1.1.1 (Simulado)";
+          success = true;
+          addLog('✓ VPN Ativada (Simulação)', 'success');
+        }
+      } catch (e) {
+        addLog('Erro grave ao iniciar VPN.', 'error');
+      }
+
+      if (success) {
+        vpnState = 'on';
+        document.getElementById('vpn-icon').setAttribute('data-lucide', 'wifi');
+        document.getElementById('vpn-icon').classList.replace('animate-spin', 'text-white');
+        document.getElementById('vpn-status-text').innerHTML = `<span class="text-white">VPN ATIVA</span>`;
+        document.getElementById('vpn-glow').classList.replace('bg-transparent', 'bg-white');
+        lucide.createIcons();
+
+        bStop.className = "py-4 rounded-lg font-semibold tracking-wider text-xs border transition-all flex items-center justify-center gap-2 bg-red-950/20 border-red-950 text-red-400 hover:bg-red-950/40 hover:border-red-900 active:scale-[0.98]";
+        bStop.disabled = false;
+
+        if (ipVis) document.getElementById('vpn-ip').innerText = currentIp;
+      } else {
+        vpnState = 'off';
+        document.getElementById('vpn-icon').setAttribute('data-lucide', 'wifi-off');
+        document.getElementById('vpn-icon').classList.remove('animate-spin', 'text-white');
+        document.getElementById('vpn-status-text').innerHTML = `VPN DESLIGADA`;
+        lucide.createIcons();
+        bStart.className = "py-4 rounded-lg font-semibold tracking-wider text-xs transition-all flex items-center justify-center gap-2 bg-white border border-white text-black hover:bg-zinc-200";
+        bStart.disabled = false;
+      }
+    }
+
+    async function stopVpn() {
+      if (vpnState !== 'on') return;
+
+      const bStop = document.getElementById('btn-vpn-stop');
+      bStop.disabled = true;
+      addLog('Desligando túnel VPN...', 'warning');
+
+      try {
+        if (window.pywebview && window.pywebview.api) {
+          await window.pywebview.api.stop_vpn();
+          currentIp = await window.pywebview.api.get_real_ip();
+        } else {
+          await new Promise(r => setTimeout(r, 1000));
+          currentIp = "Desconhecido";
+        }
+      } catch (e) { }
+
+      vpnState = 'off';
+      addLog('VPN Desativada pelo usuário.', 'warning');
+      document.getElementById('vpn-icon').setAttribute('data-lucide', 'wifi-off');
+      document.getElementById('vpn-icon').classList.replace('text-white', 'text-zinc-600');
+      document.getElementById('vpn-status-text').innerHTML = `VPN DESLIGADA`;
+      document.getElementById('vpn-glow').classList.replace('bg-white', 'bg-transparent');
+      lucide.createIcons();
+
+      if (ipVis) document.getElementById('vpn-ip').innerText = currentIp;
+
+      document.getElementById('btn-vpn-start').className = "py-4 rounded-lg font-semibold tracking-wider text-xs transition-all flex items-center justify-center gap-2 bg-white border border-white text-black hover:bg-zinc-200";
+      document.getElementById('btn-vpn-start').disabled = false;
+      bStop.className = "py-4 rounded-lg font-semibold tracking-wider text-xs border transition-all flex items-center justify-center gap-2 bg-transparent border-zinc-800 text-zinc-600 cursor-not-allowed";
+    }
+
+
+    async function runReinstallRockstar() {
+      addLog('Iniciando wipagem e reinstalação rápida...', 'warning');
+      const btn = document.getElementById('btn-reinstall-rsg');
+      btn.disabled = true;
+
+      showActionOverlay('Reinstalando Rockstar', 'Desinstalando arquivos antigos, wipando cache e instalando nova versão...');
+
+      let success = false;
+      try {
+        if (window.pywebview && window.pywebview.api) {
+          const res = await window.pywebview.api.reinstall_rockstar();
+          addLog(res.message, res.status === 'success' ? 'success' : 'error');
+          success = res.status === 'success';
+        } else {
+          await new Promise(r => setTimeout(r, 3000));
+          addLog('Rockstar reinstalado (Simulação).', 'success');
+          success = true;
+        }
+        finishActionOverlay('Instalado!', 'O Rockstar Launcher foi instalado com sucesso e está pronto para uso.');
+      } catch (err) {
+        finishActionOverlay('Erro!', 'Houve uma falha na reinstalação do Rockstar.', true);
+      }
+
+      setTimeout(() => {
+        btn.disabled = false;
+      }, 2500);
+    }
+
+    // --- FIVEM SERVERS & IMGUI LOGIC ---
+    let savedServers = [];
+    let isAutoConnect = false;
+    let autoConnectTarget = null;
+    let allFiveMServers = [];
+
+    try {
+      const stored = localStorage.getItem('sc_saved_servers');
+      if (stored) savedServers = JSON.parse(stored);
+      isAutoConnect = localStorage.getItem('sc_auto_connect') === 'true';
+      autoConnectTarget = localStorage.getItem('sc_auto_connect_target') || null;
+    } catch (e) {
+      console.error("Erro ao ler localStorage:", e);
+    }
+
+    // Inicializa
+    setTimeout(() => {
+      const toggle = document.getElementById('auto-connect-toggle');
+      if(toggle) toggle.checked = isAutoConnect;
+      renderSavedServers();
+    }, 500);
+
+    function saveState() {
+      try {
+        localStorage.setItem('sc_saved_servers', JSON.stringify(savedServers));
+        localStorage.setItem('sc_auto_connect', isAutoConnect);
+        if (autoConnectTarget) {
+          localStorage.setItem('sc_auto_connect_target', autoConnectTarget);
+        } else {
+          localStorage.removeItem('sc_auto_connect_target');
+        }
+      } catch (e) {
+        console.error("Erro ao salvar state:", e);
+      }
+    }
+
+    function addManualServer() {
+      const name = document.getElementById('add-name').value.trim();
+      const connect = document.getElementById('add-connect').value.trim();
+      if (!name || !connect) return;
+
+      savedServers.push({
+        id: Date.now().toString(),
+        name: name,
+        connect: connect,
+        players: 'N/A'
+      });
+      
+      saveState();
+      document.getElementById('add-name').value = '';
+      document.getElementById('add-connect').value = '';
+      renderSavedServers();
+    }
+
+    function removeSavedServer(id) {
+      savedServers = savedServers.filter(s => s.id !== id);
+      if (autoConnectTarget === id) {
+        autoConnectTarget = null;
+        isAutoConnect = false;
+        document.getElementById('auto-connect-toggle').checked = false;
+      }
+      saveState();
+      renderSavedServers();
+    }
+
+    function toggleAutoConnect() {
+      isAutoConnect = document.getElementById('auto-connect-toggle').checked;
+      saveState();
+    }
+
+    function setAutoConnectTarget(id) {
+      if (autoConnectTarget === id) {
+        autoConnectTarget = null;
+        isAutoConnect = false;
+        document.getElementById('auto-connect-toggle').checked = false;
+      } else {
+        autoConnectTarget = id;
+        isAutoConnect = true;
+        document.getElementById('auto-connect-toggle').checked = true;
+      }
+      saveState();
+      renderSavedServers();
+    }
+
+    function renderSavedServers() {
+      const list = document.getElementById('saved-list');
+      if(!list) return;
+      const query = document.getElementById('saved-search').value.toLowerCase();
+      
+      list.innerHTML = '';
+      
+      const filtered = savedServers.filter(s => 
+        s.name.toLowerCase().includes(query) || s.connect.toLowerCase().includes(query)
+      );
+
+      if (filtered.length === 0) {
+        list.innerHTML = '<div class="text-center text-zinc-600 text-[10px] mt-10 uppercase tracking-widest font-mono">Nenhum servidor salvo</div>';
+        return;
+      }
+
+      filtered.forEach(srv => {
+        const isActive = autoConnectTarget === srv.id && isAutoConnect;
+        
+        const div = document.createElement('div');
+        div.className = `p-3 rounded-lg flex items-center justify-between border transition-all bg-zinc-950 cursor-pointer group ${
+          isActive 
+            ? 'border-zinc-500 shadow-[0_0_12px_rgba(255,255,255,0.04)]' 
+            : 'border-zinc-800/80 hover:border-zinc-600'
+        }`;
+        
+        div.innerHTML = `
+          <div class="flex-1 flex flex-col gap-1 overflow-hidden pr-4 cursor-pointer" onclick="setAutoConnectTarget('${srv.id}')">
+            <div class="flex items-center gap-2">
+          <div class="flex flex-col truncate w-full pr-2">
+            <h3 class="text-xs font-semibold text-zinc-200 truncate flex items-center gap-1.5">
+              ${srv.name}
+            </h3>
+            <span class="text-[10px] font-mono text-zinc-500 truncate">${srv.connect}</span>
+          </div>
+          <div class="w-[100px] flex items-center justify-end gap-1.5 shrink-0">
+            <button onclick="navigator.clipboard.writeText('${srv.connect}')" class="w-7 h-7 rounded border border-zinc-800 hover:border-zinc-500 bg-black text-zinc-400 hover:text-white flex items-center justify-center transition-colors" title="Copiar Connect">
+              <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+            </button>
+            <button onclick="window.location.href='fivem://connect/${srv.connect}'; addLog('Conectando ao servidor: ${srv.connect}', 'success');" class="w-7 h-7 rounded border border-emerald-900/50 bg-black hover:bg-emerald-950/30 text-emerald-500 hover:text-emerald-400 hover:border-emerald-800 flex items-center justify-center transition-all duration-200" title="Jogar">
+              <svg class="w-3.5 h-3.5 translate-x-[1px]" viewBox="0 0 24 24" fill="currentColor"><path d="M5 3l14 9-14 9V3z"/></svg>
+            </button>
+            <button onclick="removeSavedServer('${srv.id}')" class="w-7 h-7 rounded border border-zinc-800 hover:border-red-900 bg-black text-zinc-500 hover:text-red-400 flex items-center justify-center transition-colors" title="Remover">
+              <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+            </button>
+          </div>
+        `;
+        list.appendChild(div);
+      });
+      lucide.createIcons();
+    }
+
+    // --- GLOBAL SEARCH MODAL LOGIC ---
+    function openGlobalSearch() {
+      const m = document.getElementById('search-modal');
+      const c = document.getElementById('search-modal-content');
+      m.classList.remove('hidden', 'opacity-0', 'pointer-events-none');
+      setTimeout(() => c.classList.remove('scale-95'), 10);
+      setTimeout(() => document.getElementById('global-search-input').focus(), 100);
+    }
+
+    function closeGlobalSearch() {
+      const m = document.getElementById('search-modal');
+      const c = document.getElementById('search-modal-content');
+      c.classList.add('scale-95');
+      m.classList.add('opacity-0');
+      setTimeout(() => m.classList.add('hidden', 'pointer-events-none'), 200);
+    }
+
+    async function triggerGlobalSearch() {
+      const query = document.getElementById('global-search-input').value.toLowerCase().trim();
+      const list = document.getElementById('global-servers-list');
+      const stats = document.getElementById('global-search-stats');
+      
+      if (allFiveMServers.length === 0) {
+        stats.innerHTML = `<span class="text-zinc-400 animate-pulse">Consultando API da Cfx.re (Aguarde)...</span>`;
+        list.innerHTML = '<div class="flex-1 flex items-center justify-center p-10"><i data-lucide="loader-2" class="w-8 h-8 text-zinc-500 animate-spin"></i></div>';
+        lucide.createIcons();
+        
+        try {
+          if (window.pywebview && window.pywebview.api) {
+              const res = await window.pywebview.api.fetch_fivem_servers();
+              if (res.status === 'success') {
+                  allFiveMServers = res.data;
+              } else {
+                  throw new Error(res.message);
+              }
+          } else {
+              throw new Error("PyWebView indisponível.");
+          }
+        } catch (e) {
+          stats.innerText = "Erro ao buscar servidores.";
+          list.innerHTML = `<div class="text-red-500 text-center text-xs mt-10">${e}</div>`;
+          return;
+        }
+      }
+
+      let filtered = allFiveMServers;
+      if (query) {
+         filtered = allFiveMServers.filter(s => 
+           (s.Data.hostname || '').toLowerCase().includes(query) || 
+           s.EndPoint.toLowerCase().includes(query)
+         );
+      }
+      
+      stats.innerHTML = `<span class="text-zinc-300">${filtered.length} servidores encontrados.</span>`;
+      
+      list.innerHTML = '';
+      
+      if (filtered.length === 0) {
+         list.innerHTML = '<div class="text-center text-zinc-600 text-xs mt-10 uppercase tracking-widest font-mono">Nenhum servidor encontrado</div>';
+         return;
+      }
+
+      const toRender = filtered.slice(0, 300);
+      
+      toRender.forEach(srv => {
+          const data = srv.Data;
+          const connectStr = srv.EndPoint;
+          const nameStr = (data.hostname || "Servidor FiveM").replace(/\^[0-9]/g, '');
+          const players = `${data.clients || 0}/${data.sv_maxclients || 32}`;
+          const isSaved = savedServers.some(s => s.connect === connectStr);
+          
+          let iconHtml = `<div class="w-full h-full flex items-center justify-center bg-zinc-900 rounded"><i data-lucide="server" class="w-4 h-4 text-zinc-600"></i></div>`;
+          if (data.iconVersion) {
+            const iconUrl = `https://servers-frontend.fivem.net/api/servers/icon/${connectStr}/${data.iconVersion}.png`;
+            iconHtml = `<img src="${iconUrl}" class="w-full h-full object-cover rounded" onerror="this.outerHTML='<div class=\\'w-full h-full flex items-center justify-center bg-zinc-900 rounded\\'><i data-lucide=\\'server\\' class=\\'w-4 h-4 text-zinc-600\\'></i></div>'" />`;
+          }
+
+          const div = document.createElement('div');
+          div.className = "flex items-center gap-3 p-2 bg-black border border-zinc-800 rounded-lg group transition-colors";
+          
+          const btnClass = isSaved 
+            ? 'w-7 h-7 shrink-0 flex items-center justify-center rounded border border-emerald-500/30 text-emerald-500 bg-emerald-500/10 cursor-default'
+            : 'w-7 h-7 shrink-0 flex items-center justify-center rounded border border-zinc-700 hover:border-zinc-500 bg-black text-zinc-400 hover:text-white transition-colors cursor-pointer';
+            
+          const btnIcon = isSaved ? 'check' : 'plus';
+          const btnAction = isSaved ? '' : `onclick="addFromGlobal('${btoa(unescape(encodeURIComponent(nameStr)))}', '${connectStr}', '${players}', this)"`;
+
+          div.innerHTML = `
+            <button ${btnAction} class="${btnClass}" title="${isSaved ? 'Adicionado' : 'Adicionar'}">
+              <i data-lucide="${btnIcon}" class="w-3.5 h-3.5"></i>
+            </button>
+            <div class="w-7 h-7 shrink-0 bg-black border border-zinc-800 rounded flex items-center justify-center overflow-hidden">
+               ${iconHtml}
+            </div>
+            <div class="flex-1 overflow-hidden flex flex-col justify-center">
+              <span class="text-xs text-zinc-200 font-medium truncate" title="${nameStr}">${nameStr}</span>
+              <span class="text-[9px] text-zinc-500 font-mono truncate">${connectStr}</span>
+            </div>
+            <div class="w-20 text-right shrink-0 flex flex-col items-end justify-center">
+              <span class="text-[9px] bg-black border border-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono tracking-wider">${players}</span>
+            </div>
+          `;
+          list.appendChild(div);
+      });
+      
+      lucide.createIcons();
+    }
+
+    function addFromGlobal(b64Name, connect, players, btnEl) {
+      const name = decodeURIComponent(escape(atob(b64Name)));
+      if(savedServers.some(s => s.connect === connect)) return;
+      
+      savedServers.push({
+        id: Date.now().toString(),
+        name: name,
+        connect: connect,
+        players: players
+      });
+      saveState();
+      renderSavedServers();
+      
+      btnEl.className = 'w-7 h-7 shrink-0 flex items-center justify-center rounded border border-emerald-500/30 text-emerald-500 bg-emerald-500/10 cursor-default';
+      btnEl.innerHTML = '<i data-lucide="check" class="w-3.5 h-3.5"></i>';
+      btnEl.removeAttribute('onclick');
+      lucide.createIcons();
+    }
+
+    // Inicialização
+    lucide.createIcons();
+  </script>
+</body>
+
+</html>
